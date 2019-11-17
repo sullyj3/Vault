@@ -13,11 +13,9 @@ extern crate nom;
 
 use nom::{
   IResult,
-  branch::alt,
-  bytes::complete::tag,
-  bytes::complete::tag_no_case,
-  bytes::complete::is_not,
-  character::complete::space1,
+  branch::{alt, Alt},
+  bytes::complete::{tag, tag_no_case, is_not},
+  character::complete::{space1, digit1},
   combinator::map,
   multi::separated_nonempty_list,
   number::complete::be_i32,
@@ -104,10 +102,16 @@ fn parse_row(s: &str, schema: TableSchema) -> Result<Row, RowParseError> {
 }
 
 fn parse_val(i: &str) -> IResult<&str, Value> {
-    alt::<&str, Value, _, _>(
-        ( map(be_i32,       |int: i32| Value::IntType(int)),
+    alt(
+        ( map(parse_int,       |int: i32| Value::IntType(int)),
           map(parse_string, |s: String| Value::StringType(s)) )
     )(i)
+}
+
+fn parse_int(i: &str) -> IResult<&str, i32> {
+    let (i, ds) = digit1(i)?;
+    let int = ds.parse::<i32>().unwrap();
+    Ok((i, int))
 }
 
 fn parse_string(i: &str) -> IResult<&str, String> {
@@ -206,8 +210,8 @@ fn parse_insert(insert: &str) -> IResult<&str, Statement> {
     let (i,_) = tag_no_case("INSERT")(insert)?;
     let (i,_) = space1(i)?;
     let (i,row) = delimited(tag("("), parse_row2, tag(")"))(i)?;
-
-    unimplemented!();
+    let statement = Insert(row);
+    Ok((i, statement))
 }
 
 fn parse_statement(statement: &str) -> IResult<&str, Statement, StatementPrepareError> {
