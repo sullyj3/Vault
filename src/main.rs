@@ -1,12 +1,8 @@
 mod schema;
 mod statement;
 
-use std::fs::File;
 use std::io;
-use std::io::Write;
 use std::io::prelude::*;
-use std::process::exit;
-use indoc::indoc;
 
 use statement::{
     Statement::*,
@@ -88,6 +84,9 @@ fn prompt(s: &str) {
 }
 
 fn handle_meta_command(cmd: &str) -> Result<(), MetaCommandError> {
+    use std::fs::File;
+    use std::process::exit;
+
     let words: Vec<&str> = cmd.split_whitespace().collect();
     let words_slice: &[&str] = words.as_ref();
 
@@ -123,6 +122,8 @@ fn handle_meta_command(cmd: &str) -> Result<(), MetaCommandError> {
 }
 
 fn usage() {
+    use indoc::indoc;
+
     let usage = indoc!("
         Available commands:
 
