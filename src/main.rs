@@ -1,132 +1,30 @@
+mod schema;
+mod statement;
 
 use std::fs::File;
 use std::io;
-use std::fmt;
 use std::io::Write;
 use std::io::prelude::*;
 use std::process::exit;
-
 use indoc::indoc;
 
-// #[macro_use]
-extern crate nom;
-
-use nom::{
-  IResult,
-  branch::alt,
-  bytes::complete::{tag, tag_no_case, is_not},
-  character::complete::{space1, digit1},
-  combinator::map,
-  multi::separated_nonempty_list,
-  sequence::delimited,
+use statement::{
+    Statement::*,
+    StatementPrepareError,
+    parse_statement,
 };
 
-#[derive(Debug)]
-enum ColType {
-    IntType,
-    StringType,
-}
-
-impl fmt::Display for ColType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f,
-               "{}",
-               match self {
-                   ColType::IntType => "Int",
-                   ColType::StringType => "String",
-               }).unwrap();
-        Ok(())
-    }
-}
-
-
-#[derive(Debug, PartialEq)]
-enum Value {
-    IntType(i32),
-    StringType(String)
-}
-
-#[derive(Debug)]
-struct Column<'a> {
-    colname: &'a str,
-    coltype: ColType,
-}
-
-impl fmt::Display for Column<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}: {}",
-               self.colname,
-               self.coltype
-        ).unwrap();
-        Ok(())
-    }
-}
-
-
-type Row = Vec<Value>;
-
-type TableSchema<'a> = Vec<Column<'a>>;
-
-fn temp_table() -> TableSchema<'static> {
-    vec![ Column { colname: "id",       coltype: ColType::IntType},
-          Column { colname: "username", coltype: ColType::StringType},
-          Column { colname: "email",    coltype: ColType::StringType} ]
-}
-
-#[derive(Debug, PartialEq)]
-struct RowParseError;
-
-fn parse_val(i: &str) -> IResult<&str, Value> {
-    alt(
-        ( map(parse_int,       |int: i32| Value::IntType(int)),
-          map(parse_string, |s: String| Value::StringType(s)) )
-    )(i)
-}
-
-fn parse_int(i: &str) -> IResult<&str, i32> {
-    let (i, ds) = digit1(i)?;
-    let int = ds.parse::<i32>().unwrap();
-    Ok((i, int))
-}
-
-fn parse_string(i: &str) -> IResult<&str, String> {
-    map(delimited(tag("\""),
-              is_not("\""),
-              tag("\"")
-    ), |s: &str| s.to_string() )(i)
-}
-
-fn parse_row(row: &str) -> IResult<&str, Row> {
-    separated_nonempty_list(tag(","), parse_val)(row)
-}
+use schema::{
+    ColType,
+    Column,
+    TableSchema
+};
 
 enum MetaCommandError {
     UnrecognisedCommand,
     CommandSyntaxError,
 }
 use crate::MetaCommandError::*;
-
-#[derive(Debug)]
-enum StatementPrepareError {
-    UnrecognisedStatement
-}
-//use StatementPrepareError::*;
-
-#[derive(Debug)]
-enum Statement {
-    Insert(Row),
-    Select
-}
-use Statement::*;
-
-fn show_schema(schema: &TableSchema) -> String {
-    let mut result = "| ".to_string();
-    for col in schema {
-        result += &col.to_string();
-        result += " | ";
-    }
-    result
-}
 
 fn main() -> std::io::Result<()> {
     let schema = temp_table();
@@ -138,9 +36,19 @@ fn main() -> std::io::Result<()> {
     Ok(())
 }
 
-fn prompt(s: &str) {
-    print!("{}", s);
-    io::stdout().flush().unwrap();
+fn temp_table() -> TableSchema<'static> {
+    vec![ Column { colname: "id",       coltype: ColType::IntType},
+          Column { colname: "username", coltype: ColType::StringType},
+          Column { colname: "email",    coltype: ColType::StringType} ]
+}
+
+fn show_schema(schema: &TableSchema) -> String {
+    let mut result = "| ".to_string();
+    for col in schema {
+        result += &col.to_string();
+        result += " | ";
+    }
+    result
 }
 
 fn shell(_schema: TableSchema) {
@@ -175,41 +83,9 @@ fn shell(_schema: TableSchema) {
     }
 }
 
-fn handle_statement(stat: &str) -> Result<(), StatementPrepareError> {
-    let statement = parse_statement(stat)?;
-
-    println!("{:?}", statement);
-    execute_statement(statement);
-    Ok(())
-
-}
-
-fn parse_insert(insert: &str) -> IResult<&str, Statement> {
-    let (i,_) = tag_no_case("INSERT")(insert)?;
-    let (i,_) = space1(i)?;
-    let (i,row) = delimited(tag("("), parse_row, tag(")"))(i)?;
-    let statement = Insert(row);
-    Ok((i, statement))
-}
-
-fn parse_select(select: &str) -> IResult<&str, Statement> {
-    let (i,_) = tag_no_case("SELECT")(select)?;
-    Ok((i, Select))
-}
-
-// TODO: proper errors
-fn parse_statement(statement: &str) -> Result<Statement, StatementPrepareError> {
-    alt( ( parse_insert, parse_select ) )(statement)
-        .map( |(_, s)| s)
-        .map_err( |_| StatementPrepareError::UnrecognisedStatement )
-    
-}
-
-fn execute_statement(s: Statement) {
-    match s {
-        Insert(_) => println!("insert not implemented"),
-        Select => println!("select not implemented"),
-    }
+fn prompt(s: &str) {
+    print!("{}", s);
+    io::stdout().flush().unwrap();
 }
 
 fn handle_meta_command(cmd: &str) -> Result<(), MetaCommandError> {
@@ -217,12 +93,8 @@ fn handle_meta_command(cmd: &str) -> Result<(), MetaCommandError> {
     let words_slice: &[&str] = words.as_ref();
 
     match words[0] {
-        "exit" => {
-            exit(0);
-        }
-        "help" => {
-            usage();
-        }
+        "exit" => exit(0),
+        "help" =>  usage(),
         "open" => {
             if let [_open, fname] = words_slice {
                 if let Ok(_file) = File::open(fname) {
@@ -243,7 +115,6 @@ fn handle_meta_command(cmd: &str) -> Result<(), MetaCommandError> {
             } else {
                 return Err(CommandSyntaxError)
             }
-
         }
         _ => {
             return Err(UnrecognisedCommand)
@@ -262,6 +133,18 @@ fn usage() {
             :exit
         ");
     println!("{}", usage)
+}
+
+fn handle_statement(stat: &str) -> Result<(), StatementPrepareError> {
+    let statement = parse_statement(stat)?;
+
+    println!("{:?}", statement);
+    match statement {
+        Insert(_) => println!("insert not implemented"),
+        Select => println!("select not implemented"),
+    }
+    Ok(())
+
 }
 
 #[test]
