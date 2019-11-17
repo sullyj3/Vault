@@ -34,7 +34,7 @@ impl fmt::Display for ColType {
                match self {
                    ColType::IntType => "Int",
                    ColType::StringType => "String",
-               });
+               }).unwrap();
         Ok(())
     }
 }
@@ -57,7 +57,7 @@ impl fmt::Display for Column<'_> {
         write!(f, "{}: {}",
                self.colname,
                self.coltype
-        );
+        ).unwrap();
         Ok(())
     }
 }
@@ -77,28 +77,28 @@ fn temp_table() -> TableSchema<'static> {
 struct RowParseError;
 
 // s will be a comma separated list of values
-fn parse_row(s: &str, schema: TableSchema) -> Result<Row, RowParseError> {
-    let vals: Vec<&str> = s.split(',').collect();
-    if vals.len() != schema.len() {
-        return Err(RowParseError);
-    }
-
-    let mut row = Vec::with_capacity(schema.len());
-
-    for (col, val_str) in schema.iter().zip(vals.iter()) {
-        let val = match col.coltype {
-            ColType::IntType => {
-                let i = val_str.parse::<i32>().map_err(|_| RowParseError)?;
-                Value::IntType(i)
-            }
-            ColType::StringType => Value::StringType(val_str.to_string())
-        };
-
-        row.push(val);
-    }
-
-    Ok( row )
-}
+// fn parse_row(s: &str, schema: TableSchema) -> Result<Row, RowParseError> {
+//     let vals: Vec<&str> = s.split(',').collect();
+//     if vals.len() != schema.len() {
+//         return Err(RowParseError);
+//     }
+// 
+//     let mut row = Vec::with_capacity(schema.len());
+// 
+//     for (col, val_str) in schema.iter().zip(vals.iter()) {
+//         let val = match col.coltype {
+//             ColType::IntType => {
+//                 let i = val_str.parse::<i32>().map_err(|_| RowParseError)?;
+//                 Value::IntType(i)
+//             }
+//             ColType::StringType => Value::StringType(val_str.to_string())
+//         };
+// 
+//         row.push(val);
+//     }
+// 
+//     Ok( row )
+// }
 
 fn parse_val(i: &str) -> IResult<&str, Value> {
     alt(
