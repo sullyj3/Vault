@@ -43,10 +43,9 @@ fn temp_table() -> TableSchema<'static> {
 }
 
 fn show_schema(schema: &TableSchema) -> String {
-    let mut result = "| ".to_string();
+    let mut result = "|".to_string();
     for col in schema {
-        result += &col.to_string();
-        result += " | ";
+        result += &format!(" {} |", col.to_string());
     }
     result
 }
