@@ -13,12 +13,11 @@ extern crate nom;
 
 use nom::{
   IResult,
-  branch::{alt, Alt},
+  branch::alt,
   bytes::complete::{tag, tag_no_case, is_not},
   character::complete::{space1, digit1},
   combinator::map,
   multi::separated_nonempty_list,
-  number::complete::be_i32,
   sequence::delimited,
 };
 
@@ -137,6 +136,7 @@ enum StatementPrepareError {
 }
 //use StatementPrepareError::*;
 
+#[derive(Debug)]
 enum Statement {
     Insert(Row),
     Select
@@ -167,7 +167,7 @@ fn prompt(s: &str) {
     io::stdout().flush().unwrap();
 }
 
-fn shell(schema: TableSchema) {
+fn shell(_schema: TableSchema) {
 
     prompt("vault> ");
     for line in io::stdin().lock().lines().map( |l| l.unwrap() ) {
@@ -200,10 +200,12 @@ fn shell(schema: TableSchema) {
 }
 
 fn handle_statement(stat: &str) -> Result<(), StatementPrepareError> {
-    unimplemented!();
-    //let statement = parse_statement(stat)?;
-    //execute_statement(statement);
-    //Ok(())
+    let statement = parse_statement(stat)?;
+
+    println!("{:?}", statement);
+    execute_statement(statement);
+    Ok(())
+
 }
 
 fn parse_insert(insert: &str) -> IResult<&str, Statement> {
@@ -214,17 +216,17 @@ fn parse_insert(insert: &str) -> IResult<&str, Statement> {
     Ok((i, statement))
 }
 
-fn parse_statement(statement: &str) -> IResult<&str, Statement, StatementPrepareError> {
-    unimplemented!();
-    // let asdf = alt()
+fn parse_select(select: &str) -> IResult<&str, Statement> {
+    let (i,_) = tag_no_case("SELECT")(select)?;
+    Ok((i, Select))
+}
 
-    // let words: Vec<&str> = statement.split_whitespace().collect();
-    // let statement_type: &str = &words[0].to_uppercase();
-    // match statement_type {
-    //     "INSERT" => Ok(Insert),
-    //     "SELECT" => Ok(Select),
-    //     _        => Err(UnrecognisedStatement)
-    // }
+// TODO: proper errors
+fn parse_statement(statement: &str) -> Result<Statement, StatementPrepareError> {
+    alt( ( parse_insert, parse_select ) )(statement)
+        .map( |(_, s)| s)
+        .map_err( |_| StatementPrepareError::UnrecognisedStatement )
+    
 }
 
 fn execute_statement(s: Statement) {
