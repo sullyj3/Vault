@@ -76,30 +76,6 @@ fn temp_table() -> TableSchema<'static> {
 #[derive(Debug, PartialEq)]
 struct RowParseError;
 
-// s will be a comma separated list of values
-// fn parse_row(s: &str, schema: TableSchema) -> Result<Row, RowParseError> {
-//     let vals: Vec<&str> = s.split(',').collect();
-//     if vals.len() != schema.len() {
-//         return Err(RowParseError);
-//     }
-// 
-//     let mut row = Vec::with_capacity(schema.len());
-// 
-//     for (col, val_str) in schema.iter().zip(vals.iter()) {
-//         let val = match col.coltype {
-//             ColType::IntType => {
-//                 let i = val_str.parse::<i32>().map_err(|_| RowParseError)?;
-//                 Value::IntType(i)
-//             }
-//             ColType::StringType => Value::StringType(val_str.to_string())
-//         };
-// 
-//         row.push(val);
-//     }
-// 
-//     Ok( row )
-// }
-
 fn parse_val(i: &str) -> IResult<&str, Value> {
     alt(
         ( map(parse_int,       |int: i32| Value::IntType(int)),
@@ -120,7 +96,7 @@ fn parse_string(i: &str) -> IResult<&str, String> {
     ), |s: &str| s.to_string() )(i)
 }
 
-fn parse_row2(row: &str) -> IResult<&str, Row> {
+fn parse_row(row: &str) -> IResult<&str, Row> {
     separated_nonempty_list(tag(","), parse_val)(row)
 }
 
@@ -211,7 +187,7 @@ fn handle_statement(stat: &str) -> Result<(), StatementPrepareError> {
 fn parse_insert(insert: &str) -> IResult<&str, Statement> {
     let (i,_) = tag_no_case("INSERT")(insert)?;
     let (i,_) = space1(i)?;
-    let (i,row) = delimited(tag("("), parse_row2, tag(")"))(i)?;
+    let (i,row) = delimited(tag("("), parse_row, tag(")"))(i)?;
     let statement = Insert(row);
     Ok((i, statement))
 }
