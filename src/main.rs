@@ -104,9 +104,10 @@ fn parse_row(s: &str, schema: TableSchema) -> Result<Row, RowParseError> {
 }
 
 fn parse_val(i: &str) -> IResult<&str, Value> {
-    alt((map(be_i32, |int: i32| Value::IntType(int)),
-         map(parse_string, |s: String| Value::StringType(s)) )
-       )(i)
+    alt::<&str, Value, _, _>(
+        ( map(be_i32,       |int: i32| Value::IntType(int)),
+          map(parse_string, |s: String| Value::StringType(s)) )
+    )(i)
 }
 
 fn parse_string(i: &str) -> IResult<&str, String> {
